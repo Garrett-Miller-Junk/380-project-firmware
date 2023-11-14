@@ -1,6 +1,6 @@
 #include <QTRSensors.h>
 #include <Servo.h>
-
+#include "colourSensor.h"
 // note: check pwm limit
 
 // Drive Motor Pins
@@ -31,14 +31,8 @@ bool start_grab = false;
 bool start_release = false;
 bool stop_run = false;
 
-// PID Variables
-uint16_t position;
-float Kp = 0.08;
-float Ki = 0.002;
-float Kd = 0.3;
-float P, D, I, error;
-float previous_error;
-float PID_value;
+// BANG BANG Values
+#define DIFFERENTIAL 50;
 int left_motor_speed;
 int right_motor_speed;
 int base_speed = 120;
@@ -53,6 +47,7 @@ void setup()
   pinMode(pinSensorL, OUTPUT);
   digitalWrite(pinSensorL, HIGH);
   digitalWrite(pinSensorR, HIGH);
+  delay(100);
   tcs.begin();
   // Onboard Components
   pinMode(PC13, INPUT); // Blue Button
@@ -94,6 +89,7 @@ void setup()
 }
 
 void loop() {
+  Sense_Colours left_colour, right_colour = RED;
 
   while (!start_calibrate) {
     start_calibrate = !digitalRead(PC13);
@@ -113,9 +109,11 @@ void loop() {
   while (start_program) {
 
     while (!start_grab) {
-      PID_line_follow();
+      Bang_Bang_line_follow(tcs);
+      left_colour = getColour(tcs, S_LEFT);
+      right_colour = getColour(tcs, S_RIGHT);
       // maybe add an estimated time elapsed before we start polling for target
-      if (digitalRead(33)) {
+      if (left_colour == BLUE || right_colour == BLUE) {
         start_grab = true;
       }
     }
@@ -130,9 +128,11 @@ void loop() {
     digitalWrite(in4, HIGH);
 
     while (!start_release) {
-      PID_line_follow(); // make a reverse function
+      Bang_Bang_line_follow(tcs); // make a reverse function
+      left_colour = getColour(tcs, S_LEFT);
+      right_colour = getColour(tcs, S_RIGHT);
       // maybe add an estimated time elapsed before we start polling for target
-      if (digitalRead(34)) {
+      if (left_colour == GREEN || right_colour == GREEN) {
         start_release = true;
       }
     }
@@ -146,7 +146,7 @@ void loop() {
     digitalWrite(in4, HIGH);
 
     while (!stop_run) {
-      PID_line_follow(); // make a reverse function
+      Bang_Bang_line_follow(tcs); // make a reverse function
       // maybe add an estimated time elapsed before we start polling for target
       if (digitalRead(PIN_A10)) {
         digitalWrite(in1, LOW);
@@ -174,49 +174,18 @@ void loop() {
 // add colour sensor bang bang backup
 // test if red detected
 
-void PID_line_follow() {
+void Bang_Bang_line_follow(Adafruit_TCS34725 tcs) {
+  
+  left_motor_speed = base_speed;
+	right_motor_speed = base_speed;
 
-  // read calibrated sensor values and obtain a measure of the line position
-  // from 0 to 7000 (for a white line, use readLineWhite() instead)
-  position = qtr.readLineBlack(sensorValues);
-  //Serial.println(position);
-
-  // print the sensor values as numbers from 0 to 1000, where 0 means maximum
-  // reflectance and 1000 means minimum reflectance, followed by the line
-  // position
-  for (uint8_t i = 0; i < SensorCount; i++)
-  {
-    //Serial.print(sensorValues[i]);
-    //Serial.print('\t');
+  if(getColour(tcs, S_LEFT) == RED) {
+    left_motor_speed -= DIFFERENTIAL;
+    right_motor_speed += DIFFERENTIAL;
   }
-  //Serial.println(position);
-
-  error = 3500 - position;
-  //Serial.println(error); // good
-  // 0 middle
-  // ch1 on line towards +3500
-  // ch8 on line towards - 3500
-
-  P = error;
-  I = I + error;
-  D = error - previous_error;
-
-  PID_value = (Kp * P) + (Ki * I) + (Kd * D);
-
-  left_motor_speed = base_speed - PID_value;
-	right_motor_speed = base_speed + PID_value;
-
-  if (left_motor_speed > pwm_max) {
-    left_motor_speed = pwm_max;
-  }
-  if (left_motor_speed < 0) {
-    left_motor_speed = 0;
-  }
-  if (right_motor_speed > pwm_max) {
-    right_motor_speed = pwm_max;
-  }
-  if (right_motor_speed < 0) {
-    right_motor_speed = 0;
+  if(getColour(tcs, S_RIGHT) == RED) {
+    left_motor_speed += DIFFERENTIAL;
+    right_motor_speed -= DIFFERENTIAL;
   }
 
   Serial.print(left_motor_speed);
@@ -225,9 +194,6 @@ void PID_line_follow() {
 
   analogWrite(enA, right_motor_speed);
   analogWrite(enB, left_motor_speed);
-
-  previous_error = error;
-
 
   delay(250);
 

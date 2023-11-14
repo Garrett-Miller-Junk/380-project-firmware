@@ -8,10 +8,11 @@ void setSensorSide(int side){
     digitalWrite(pinSensorR, HIGH);
     digitalWrite(pinSensorL, LOW);
   }
+  delay(50);
 }
 
 
-void getRGB(Adafruit_TCS34725 tcs, float *r, float *g, float *b, int side=S_LEFT) {
+void getRGB(Adafruit_TCS34725 tcs, float *r, float *g, float *b, int side) {
   setSensorSide(side);
   tcs.setInterrupt(false);  // turn on LED
 
@@ -23,7 +24,7 @@ void getRGB(Adafruit_TCS34725 tcs, float *r, float *g, float *b, int side=S_LEFT
 }
 
 
-Sense_Colours getColour(Adafruit_TCS34725 tcs, int side=LEFT) {
+Sense_Colours getColour(Adafruit_TCS34725 tcs, int side) {
   uint16_t red, green, blue, c;
   setSensorSide(side);
   tcs.setInterrupt(false);  // turn on LED

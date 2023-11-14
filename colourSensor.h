@@ -3,7 +3,7 @@
 #include <Wire.h>
 #include "Adafruit_TCS34725.h"
 
-#define PinSensorL 12
+#define pinSensorL 12
 #define pinSensorR 13
 
 #define S_LEFT 0
@@ -15,9 +15,10 @@ enum Sense_Colours{
   GREEN = 2,
   BLACK = 3,
   WHITE = 4,
-}
-void getRGB(Adafruit_TCS34725 tcs, float* r, float* g, float* b, int side=S_LEFT);
+};
 
-Sense_Colours getColour(Adafruit_TCS34725 tcs, int side=LEFT);
+void getRGB(Adafruit_TCS34725 tcs, float *r, float *g, float *b, int side);
+
+Sense_Colours getColour(Adafruit_TCS34725 tcs, int side);
 
 #endif
