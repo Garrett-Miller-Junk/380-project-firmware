@@ -3,8 +3,7 @@
 #include <Wire.h>
 #include "Adafruit_TCS34725.h"
 
-#define pinSensorL 12
-#define pinSensorR 13
+#define pinSensorControl PA8
 
 #define S_LEFT 0
 #define S_RIGHT 1

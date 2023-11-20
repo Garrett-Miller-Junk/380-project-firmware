@@ -39,16 +39,28 @@ int base_speed = 120;
 
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 
+//will just be used to initialize the second sensor
+Adafruit_TCS34725 tcs2 = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
+
 void setup()
 {
-
-  // Colour Sensor Toggle Pins
-  pinMode(pinSensorR, OUTPUT);
-  pinMode(pinSensorL, OUTPUT);
-  digitalWrite(pinSensorL, HIGH);
-  digitalWrite(pinSensorR, HIGH);
+  pinMode(pinSensorControl, OUTPUT);
+  digitalWrite(pinSensorControl, HIGH);
+  Serial.begin(9600);
+  if (tcs.begin()) {
+    Serial.println("Sensor 1 Found");
+  } else {
+    Serial.println("No SENSOR 1 found ... check your connections");
+  }
+  digitalWrite(pinSensorControl, LOW);
   delay(100);
-  tcs.begin();
+    if (tcs2.begin()) {
+    Serial.println("Sensor 2 Found");
+  } else {
+    Serial.println("No SENSOR 2 found ... check your connections");
+
+  }
+  digitalWrite(pinSensorControl, HIGH);
   // Onboard Components
   pinMode(PC13, INPUT); // Blue Button
   pinMode(PA5, OUTPUT); // LED
