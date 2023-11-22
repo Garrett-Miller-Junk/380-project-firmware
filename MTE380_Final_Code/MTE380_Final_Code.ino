@@ -32,15 +32,21 @@ bool start_release = false;
 bool stop_run = false;
 
 // BANG BANG Values
-#define DIFFERENTIAL 50;
+#define DIFFERENTIAL 60;
 int left_motor_speed;
 int right_motor_speed;
 int base_speed = 120;
 
-Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
+float right_history_factor = 0.0;
+float left_history_factor = 0.0;
+float diff_increase = 60;
+
+int time_index = 0;
+
+Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_24MS, TCS34725_GAIN_4X);
 
 //will just be used to initialize the second sensor
-Adafruit_TCS34725 tcs2 = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
+Adafruit_TCS34725 tcs2 = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_24MS, TCS34725_GAIN_4X);
 
 void setup()
 {
@@ -103,13 +109,13 @@ void setup()
 void loop() {
   Sense_Colours left_colour, right_colour = RED;
 
-  while (!start_calibrate) {
-    start_calibrate = !digitalRead(PC13);
-    delay(100);
-  }
+  // while (!start_calibrate) {
+  //   start_calibrate = !digitalRead(PC13);
+  //   delay(100);
+  // }
 
   Serial.println("----- START CALIBRATE -----");
-  calibrate();
+  // calibrate();
   Serial.println("----- END CALIBRATE -----");
 
   while (!start_program) {
@@ -121,9 +127,9 @@ void loop() {
   while (start_program) {
 
     while (!start_grab) {
-      Bang_Bang_line_follow(tcs);
-      left_colour = getColour(tcs, S_LEFT);
-      right_colour = getColour(tcs, S_RIGHT);
+      Bang_Bang_line_follow(tcs, right_history_factor, left_history_factor, left_colour, right_colour);
+      // left_colour = getColour(tcs, S_LEFT);
+      // right_colour = getColour(tcs, S_RIGHT);
       // maybe add an estimated time elapsed before we start polling for target
       if (left_colour == BLUE || right_colour == BLUE) {
         start_grab = true;
@@ -140,11 +146,11 @@ void loop() {
     digitalWrite(in4, HIGH);
 
     while (!start_release) {
-      Bang_Bang_line_follow(tcs); // make a reverse function
-      left_colour = getColour(tcs, S_LEFT);
-      right_colour = getColour(tcs, S_RIGHT);
+      Bang_Bang_line_follow(tcs, right_history_factor, left_history_factor, left_colour, right_colour); // make a reverse function
+      // left_colour = getColour(tcs, S_LEFT);
+      // right_colour = getColour(tcs, S_RIGHT);
       // maybe add an estimated time elapsed before we start polling for target
-      if (left_colour == GREEN || right_colour == GREEN) {
+      if (left_colour == RED || right_colour == RED) {
         start_release = true;
       }
     }
@@ -158,7 +164,7 @@ void loop() {
     digitalWrite(in4, HIGH);
 
     while (!stop_run) {
-      Bang_Bang_line_follow(tcs); // make a reverse function
+      Bang_Bang_line_follow(tcs, right_history_factor, left_history_factor, left_colour, right_colour); // make a reverse function
       // maybe add an estimated time elapsed before we start polling for target
       if (digitalRead(PIN_A10)) {
         digitalWrite(in1, LOW);
@@ -186,28 +192,97 @@ void loop() {
 // add colour sensor bang bang backup
 // test if red detected
 
-void Bang_Bang_line_follow(Adafruit_TCS34725 tcs) {
-  
+void Bang_Bang_line_follow(Adafruit_TCS34725 tcs, float &rhf, float &lhf, Sense_Colours &rclr, Sense_Colours &lclr) {
+  time_index += 1;
+  // left_motor_speed = base_speed - 20;
+	// right_motor_speed = base_speed + 30;
   left_motor_speed = base_speed;
-	right_motor_speed = base_speed;
+  right_motor_speed = base_speed;
 
-  if(getColour(tcs, S_LEFT) == RED) {
-    left_motor_speed -= DIFFERENTIAL;
-    right_motor_speed += DIFFERENTIAL;
+  lclr = getColour(tcs, S_LEFT);
+  rclr = getColour(tcs, S_RIGHT);
+
+  // Left sensor detects line, right doesn't, gradually ramp right up & left down
+  // if (lclr == GREEN) {
+  //   rhf += 0.2;
+  //   if (rhf >= 1.0) rhf = 1.0;
+
+  //   lhf -= 0.2;
+  //   if (lhf <= -1.0) lhf = -1.0;
+  // }
+
+  // // Right sensor detects line, left doesn't, gradually ramp left up & right down
+  // else if (rclr == GREEN) {
+  //   rhf -= 0.2;
+  //   if (rhf <= -1.0) rhf = -1.0;
+
+  //   lhf += 0.2;
+  //   if (lhf >= 1.0) lhf = 1.0;
+  // }
+
+  // // Both sensors or no sensors detect line (default case), gradually equalize motors
+  // else {
+  //   if (rhf > 0) rhf -= 0.2;
+  //   else if (rhf < 0) rhf += 0.2;
+
+  //   if (lhf > 0) lhf -= 0.2;
+  //   else if (lhf < 0) lhf += 0.2;
+  // }
+
+  // Adjusting motor speeds based on history values
+  // left_motor_speed += diff_increase*lhf;
+  // right_motor_speed += diff_increase*rhf;
+
+  // if(getColour(tcs, S_LEFT) == GREEN) {
+  // if (lclr == GREEN) {
+  //   left_motor_speed -= DIFFERENTIAL;
+  //   right_motor_speed += DIFFERENTIAL;
+  // }
+  // // if(getColour(tcs, S_RIGHT) == GREEN) {
+  // if (rclr == GREEN) {
+  //   left_motor_speed += DIFFERENTIAL;
+  //   right_motor_speed -= DIFFERENTIAL;
+  // }
+  if (lclr == RED) {
+    rhf = 5.0;
+    lhf = 0.0;
   }
-  if(getColour(tcs, S_RIGHT) == RED) {
-    left_motor_speed += DIFFERENTIAL;
-    right_motor_speed -= DIFFERENTIAL;
+  if (rclr == RED) {
+    rhf = 0.0;
+    lhf = 5.0;
   }
 
+  // Adjust speed based on history
+  if (rhf > 0) {
+    rhf += -1;
+    left_motor_speed = base_speed - 50;
+    right_motor_speed = base_speed + 50; 
+  }
+  else if (lhf > 0) {
+    lhf += -1;
+    left_motor_speed = base_speed + 50;
+    right_motor_speed = base_speed - 50;
+  }
+
+  // Serial.print(str(leftSense) + " / " + str(rightSense) + "\t\t" + str(left_motor_speed) + " / " + str(right_motor_speed) + "\t\t" + str(lhf) + " / " + str(rhf));
+  // Serial.print(time_index);
+  // Serial.print("\t");
+  // Serial.print(lclr);
+  // Serial.print(" / ");
+  // Serial.print(rclr);
+  // Serial.print("\t");
   Serial.print(left_motor_speed);
   Serial.print(" / ");
   Serial.println(right_motor_speed);
+  // Serial.print("\t");
+  // Serial.print(lhf);
+  // Serial.print(" / ");
+  // Serial.println(rhf);
 
   analogWrite(enA, right_motor_speed);
   analogWrite(enB, left_motor_speed);
 
-  delay(250);
+  // delay(50);
 
 }
 
