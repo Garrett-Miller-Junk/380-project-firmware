@@ -26,10 +26,12 @@ int right_motor_speed;
 
 // bang bang speeds //
 
-float straight_threshold = 0.04;
+float straight_threshold = 0.01;
 int full_speed = 255;
-int reverse_left = -60;
-int reverse_right = -60;
+int reverse_left = -120; // was at -60 before
+int reverse_right = -120;
+
+// int time_until_target_curve = 12000;
 
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 
@@ -134,11 +136,6 @@ void loop() {
     digitalWrite(in3, LOW);
     digitalWrite(in4, LOW);
   }
-  // line follow until target (loop that polls colour sensor)
-  // grab
-  // reverse line follow until safe zone (loop that polls colour sensor)
-  // release
-  // reverse line follow (loop)
 }
 
 
