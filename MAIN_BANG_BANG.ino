@@ -14,7 +14,7 @@
 
 #define pwm_max 255
 
-#define colour_line GREEN
+#define colour_line RED
 
 // Servo
 Servo grabber_servo;
@@ -182,7 +182,7 @@ void PID_line_follow(Adafruit_TCS34725 tcs, Sense_Colours *left_colour, Sense_Co
     if (left_percent > right_percent) {             // red stronger on left
       left_motor_speed = full_speed;
       right_motor_speed = reverse_right;                      // negative
-    } else if (left_percent > right_percent) {      // red stronger on right
+    } else if (left_percent < right_percent) {      // red stronger on right
       right_motor_speed = full_speed;
       left_motor_speed = reverse_left;
     }
