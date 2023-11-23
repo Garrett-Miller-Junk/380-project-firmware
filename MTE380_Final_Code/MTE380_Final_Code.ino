@@ -35,7 +35,7 @@ bool stop_run = false;
 #define DIFFERENTIAL 60;
 int left_motor_speed;
 int right_motor_speed;
-int base_speed = 120;
+int base_speed = 90;
 
 float right_history_factor = 0.0;
 float left_history_factor = 0.0;
@@ -150,7 +150,7 @@ void loop() {
       // left_colour = getColour(tcs, S_LEFT);
       // right_colour = getColour(tcs, S_RIGHT);
       // maybe add an estimated time elapsed before we start polling for target
-      if (left_colour == RED || right_colour == RED) {
+      if (left_colour == GREEN || right_colour == GREEN) {
         start_release = true;
       }
     }
@@ -243,25 +243,25 @@ void Bang_Bang_line_follow(Adafruit_TCS34725 tcs, float &rhf, float &lhf, Sense_
   //   left_motor_speed += DIFFERENTIAL;
   //   right_motor_speed -= DIFFERENTIAL;
   // }
-  if (lclr == RED) {
-    rhf = 5.0;
+  if (lclr == GREEN) {
+    rhf = 50.0;
     lhf = 0.0;
   }
-  if (rclr == RED) {
+  if (rclr == GREEN) {
     rhf = 0.0;
-    lhf = 5.0;
+    lhf = 50.0;
   }
 
   // Adjust speed based on history
   if (rhf > 0) {
     rhf += -1;
-    left_motor_speed = base_speed - 50;
-    right_motor_speed = base_speed + 50; 
+    left_motor_speed = base_speed - 30;
+    right_motor_speed = base_speed + 30; 
   }
   else if (lhf > 0) {
     lhf += -1;
-    left_motor_speed = base_speed + 50;
-    right_motor_speed = base_speed - 50;
+    left_motor_speed = base_speed + 30;
+    right_motor_speed = base_speed - 30;
   }
 
   // Serial.print(str(leftSense) + " / " + str(rightSense) + "\t\t" + str(left_motor_speed) + " / " + str(right_motor_speed) + "\t\t" + str(lhf) + " / " + str(rhf));
