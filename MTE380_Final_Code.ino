@@ -23,6 +23,8 @@ uint16_t sensorValues[SensorCount];
 // Servo
 Servo grabber_servo;
 
+#define OPEN_VALUE 30
+#define CLOSED_VALUE 130
 // Program Logic
 bool start_program = false;
 bool start_calibrate = false;
@@ -32,10 +34,14 @@ bool start_release = false;
 bool stop_run = false;
 
 // BANG BANG Values
-#define DIFFERENTIAL 50;
+const int DIFFERENTIAL = 20;
+const int TURN_TIME = 12;
 int left_motor_speed;
 int right_motor_speed;
-int base_speed = 120;
+int base_speed = 90;
+
+int counter = TURN_TIME;
+
 
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 
@@ -89,7 +95,7 @@ void setup()
 
   // Servo Motors
   grabber_servo.attach(11);
-
+  grabber_servo.write(OPEN_VALUE);
   // Serial Monitor
   Serial.begin(9600);
 
@@ -97,20 +103,12 @@ void setup()
   qtr.setTypeRC();
   qtr.setSensorPins((const uint8_t[]){30, 16, 17, 19, 20, 21, PIN_A8, PIN_A9}, SensorCount);
   qtr.setEmitterPin(31);
+
   
 }
 
 void loop() {
   Sense_Colours left_colour, right_colour = RED;
-
-  while (!start_calibrate) {
-    start_calibrate = !digitalRead(PC13);
-    delay(100);
-  }
-
-  Serial.println("----- START CALIBRATE -----");
-  calibrate();
-  Serial.println("----- END CALIBRATE -----");
 
   while (!start_program) {
     start_program = !digitalRead(PC13);
@@ -118,55 +116,44 @@ void loop() {
 
   Serial.println("----- START PROGRAM -----");
 
+  analogWrite(enA, base_speed);
+  analogWrite(enB, base_speed);
+
   while (start_program) {
 
-    while (!start_grab) {
-      Bang_Bang_line_follow(tcs);
-      left_colour = getColour(tcs, S_LEFT);
-      right_colour = getColour(tcs, S_RIGHT);
-      // maybe add an estimated time elapsed before we start polling for target
-      if (left_colour == BLUE || right_colour == BLUE) {
-        start_grab = true;
-      }
-    }
+    do {
+      Bang_Bang_line_follow(tcs, &left_colour, &right_colour, &counter);
+    } while (left_colour != BLUE && right_colour != BLUE);
 
     // run grab function
     Serial.println("GRAB HER I DON'T EVEN KNOW HER");
     digitalWrite(in2, LOW);
     digitalWrite(in4, LOW);
-    grabber_servo.write(0);
-    delay(8000);
+    grabber_servo.write(CLOSED_VALUE);
+    delay(10000);
     digitalWrite(in2, HIGH);
     digitalWrite(in4, HIGH);
 
-    while (!start_release) {
-      Bang_Bang_line_follow(tcs); // make a reverse function
-      left_colour = getColour(tcs, S_LEFT);
-      right_colour = getColour(tcs, S_RIGHT);
-      // maybe add an estimated time elapsed before we start polling for target
-      if (left_colour == GREEN || right_colour == GREEN) {
-        start_release = true;
-      }
-    }
+    do{
+      Bang_Bang_line_follow(tcs, &left_colour, &right_colour, &counter);
+    } while(left_colour != GREEN && right_colour!= GREEN);
+
     // run release function
     Serial.println("RELEASE");
     digitalWrite(in2, LOW);
     digitalWrite(in4, LOW);
-    grabber_servo.write(180);
-    delay(8000);
+    grabber_servo.write(OPEN_VALUE);
+    delay(10000);
     digitalWrite(in2, HIGH);
     digitalWrite(in4, HIGH);
 
-    while (!stop_run) {
-      Bang_Bang_line_follow(tcs); // make a reverse function
-      // maybe add an estimated time elapsed before we start polling for target
-      if (digitalRead(PIN_A10)) {
-        digitalWrite(in1, LOW);
-        digitalWrite(in2, LOW);
-        digitalWrite(in3, LOW);
-        digitalWrite(in4, LOW);
-      }
-    }
+    do {
+      Bang_Bang_line_follow(tcs, &left_colour, &right_colour, &counter);
+    } while (left_colour != RED || right_colour != RED );      
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, LOW);
+    digitalWrite(in3, LOW);
+    digitalWrite(in4, LOW);
 
     
 
@@ -186,29 +173,42 @@ void loop() {
 // add colour sensor bang bang backup
 // test if red detected
 
-void Bang_Bang_line_follow(Adafruit_TCS34725 tcs) {
+void Bang_Bang_line_follow(Adafruit_TCS34725 tcs, Sense_Colours *left_colour, Sense_Colours *right_colour, int *counter) {
+  if(*counter == 0){
+    analogWrite(enA, base_speed);
+    analogWrite(enB, base_speed);
+    *counter = -1;
+  } else if (*counter > 0){
+    *counter = *counter - 1;
+  }
   
-  left_motor_speed = base_speed;
-	right_motor_speed = base_speed;
-
-  if(getColour(tcs, S_LEFT) == RED) {
-    left_motor_speed -= DIFFERENTIAL;
-    right_motor_speed += DIFFERENTIAL;
+  *left_colour = getColour(tcs, S_LEFT);
+  *right_colour = getColour(tcs, S_RIGHT);
+  if(*left_colour == GREEN) {
+    analogWrite(enA, (base_speed + DIFFERENTIAL));
+    analogWrite(enB, (base_speed - DIFFERENTIAL));
+    *counter = TURN_TIME;
   }
-  if(getColour(tcs, S_RIGHT) == RED) {
-    left_motor_speed += DIFFERENTIAL;
-    right_motor_speed -= DIFFERENTIAL;
+  if(*right_colour == GREEN) {
+    analogWrite(enA, (base_speed - DIFFERENTIAL));
+    analogWrite(enB, (base_speed + DIFFERENTIAL));
+    *counter = TURN_TIME;
   }
 
+  
+/*
   Serial.print(left_motor_speed);
   Serial.print(" / ");
-  Serial.println(right_motor_speed);
-
+  Serial.print(right_motor_speed);
+  Serial.print("\t");
+  Serial.print(*left_colour);
+  Serial.print(" / ");
+  Serial.println(*right_colour);
+*/
+/*
   analogWrite(enA, right_motor_speed);
   analogWrite(enB, left_motor_speed);
-
-  delay(250);
-
+*/
 }
 
 void calibrate() {

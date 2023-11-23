@@ -2,7 +2,7 @@
 
 void setSensorSide(int side){
   side == S_LEFT ? digitalWrite(pinSensorControl, HIGH): digitalWrite(pinSensorControl, LOW);
-  delay(5);
+  delay(1);
 }
 
 
@@ -21,7 +21,7 @@ Sense_Colours getColour(Adafruit_TCS34725 tcs, int side) {
     return BLACK;
   } else if(((float) red/c) > 0.59) { 
     return RED;
-  } else if(((float) green/c) > 0.41) {
+  } else if(((float) green/c) > 0.38) {
     return GREEN;
   } else if(((float) blue/c) > 0.29) {
     return BLUE;
