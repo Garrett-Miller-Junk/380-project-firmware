@@ -1,7 +1,5 @@
-#include <QTRSensors.h>
 #include <Servo.h>
 #include "colourSensor.h"
-// note: check pwm limit
 
 // Drive Motor Pins
 #define enA 9 
@@ -14,23 +12,24 @@
 
 #define pwm_max 255
 
+#define colour_line GREEN
+
 // Servo
 Servo grabber_servo;
 
 #define OPEN_VALUE 30
 #define CLOSED_VALUE 130
-// Program Logic
 
 
-const int BASE_SPEED = 230;
+int left_motor_speed;
+int right_motor_speed;
 
-const float MIN_RED = 0.45;
-const float MAX_RED = 0.75;
-const float MAX_ERROR = MAX_RED - MIN_RED;
+// bang bang speeds //
 
-const float P_VAL = 0.08 / MAX_ERROR;
-const float I_VAL = 0.002 / MAX_ERROR;
-const float D_VAL = 0.3 / MAX_ERROR;
+float straight_threshold = 0.04;
+int full_speed = 255;
+int reverse_left = -60;
+int reverse_right = -60;
 
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 
@@ -59,12 +58,7 @@ void setup()
   // Onboard Components
   pinMode(PC13, INPUT); // Blue Button
   pinMode(PA5, OUTPUT); // LED
-  digitalWrite(PA5, HIGH); // Indicates Calibration Mode
-
-  // Buttons (temp)
-  pinMode(33, INPUT); // B
-  pinMode(34, INPUT); // G
-  pinMode(PIN_A10, INPUT); // R
+  digitalWrite(PA5, HIGH);
 
   // DC Motors
 
@@ -91,8 +85,7 @@ void setup()
 
 void loop() {
   Sense_Colours left_colour, right_colour;
-  float old_error = 0.0;
-  float error_sum = 0.0;
+
   do{
 
   }while(digitalRead(PC13));
@@ -102,20 +95,26 @@ void loop() {
   while (true) {
 
     do {
-      PID_line_follow(tcs, &old_error, &error_sum, &left_colour, &right_colour);
+      PID_line_follow(tcs, &left_colour, &right_colour);
     } while (left_colour != BLUE && right_colour != BLUE);
 
-    // run grab function
-    Serial.println("GRAB HER I DON'T EVEN KNOW HER");
+    // GRAB MECHANISM //
+    digitalWrite(in1, LOW);
     digitalWrite(in2, LOW);
+    digitalWrite(in3, LOW);
     digitalWrite(in4, LOW);
     grabber_servo.write(CLOSED_VALUE);
     delay(10000);
+
+    // DO A 180, then, run same line follow until both see red. (if unequal adjusts, inverse them)
+
+    digitalWrite(in1, LOW);
     digitalWrite(in2, HIGH);
+    digitalWrite(in3, LOW);
     digitalWrite(in4, HIGH);
 
     do{
-      PID_line_follow(tcs, &old_error, &error_sum, &left_colour, &right_colour);
+      PID_line_follow(tcs, &left_colour, &right_colour);
     } while(left_colour != GREEN && right_colour!= GREEN);
 
     // run release function
@@ -128,7 +127,7 @@ void loop() {
     digitalWrite(in4, HIGH);
 
     do {
-      PID_line_follow(tcs, &old_error, &error_sum, &left_colour, &right_colour);
+      PID_line_follow(tcs, &left_colour, &right_colour);
     } while (left_colour != RED || right_colour != RED );      
     digitalWrite(in1, LOW);
     digitalWrite(in2, LOW);
@@ -142,29 +141,75 @@ void loop() {
   // reverse line follow (loop)
 }
 
-// add colour sensor bang bang backup
-// test if red detected
 
-void PID_line_follow(Adafruit_TCS34725 tcs, float *old_error, float *error_sum, Sense_Colours *left_colour, Sense_Colours *right_colour) {
+
+void PID_line_follow(Adafruit_TCS34725 tcs, Sense_Colours *left_colour, Sense_Colours *right_colour) {
   float left_percent, right_percent;
   *left_colour = getColour(tcs, S_LEFT, &left_percent);
   *right_colour = getColour(tcs, S_RIGHT, &right_percent);
-  // calculate the error as the difference in percent red between the left and right
-  float error = left_percent - right_percent;
-  // calculate the derivative of the error as the new error minus the old error
-  float error_diff = error - *old_error;
-  // calculate the integral of the error as the old sum of the errors plus the new error
-  *error_sum = *error_sum + error;
-  // multiply each PID error value by their respective constants and convert that into an int
-  int total_error = (int) error*P_VAL + error_diff*D_VAL + (*error_sum)*I_VAL;
+
+  if (colour_line == RED) {
+
+    if (left_percent > right_percent) {             // red stronger on left
+      left_motor_speed = full_speed;
+      right_motor_speed = reverse_right;                      // negative
+    } else if (left_percent > right_percent) {      // red stronger on right
+      right_motor_speed = full_speed;
+      left_motor_speed = reverse_left;
+    }
+    if (left_percent - right_percent < 0.02 && left_percent - right_percent > -0.02) {
+      left_motor_speed = full_speed;
+      right_motor_speed = full_speed;
+    }
+
+  } else if (colour_line == GREEN) {
+    if (left_percent < right_percent) {             // green stronger on left
+      left_motor_speed = full_speed;
+      right_motor_speed = reverse_right;                      // negative
+   } else if (left_percent > right_percent) {       // green stronger on right
+      right_motor_speed = full_speed;
+      left_motor_speed = reverse_left;
+    }
+    if (left_percent - right_percent < straight_threshold && left_percent - right_percent > straight_threshold*-1) {
+      left_motor_speed = full_speed;
+      right_motor_speed = full_speed;
+    }
+  }
+
+  if (left_motor_speed > 0){
+      digitalWrite(in3, LOW);
+      digitalWrite(in4, HIGH);
+  } else {
+      digitalWrite(in3, HIGH);
+      digitalWrite(in4, LOW);
+      left_motor_speed *= -1;
+  }
+
+  if (right_motor_speed > 0){
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, HIGH);
+  } else {
+      digitalWrite(in1, HIGH);
+      digitalWrite(in2, LOW);
+      right_motor_speed *= -1;
+  }
 
   //print it for testing
-  Serial.println(total_error);
+  Serial.print(left_percent);
+  Serial.print("  ");
+  Serial.print(right_percent);
+  Serial.print("  ");
+  // Serial.print(total_error);
+  Serial.print(" | ");
+  Serial.print(left_motor_speed); 
+  Serial.print("  ");
+  Serial.println(right_motor_speed);
 
-  //increase the right motor speed by the error (as a larger left value means more error means left is closer to red)
-  analogWrite(enA, (BASE_SPEED + total_error));
-  // decrease the left motor speed by the error
-  analogWrite(enB, (BASE_SPEED - total_error));
-  // set the old error to the new error
-  *old_error = error;
+
+
+  // RIGHT (facing grabber side)
+  analogWrite(enA, right_motor_speed);
+  // LEFT
+  analogWrite(enB, left_motor_speed);
+
 }
