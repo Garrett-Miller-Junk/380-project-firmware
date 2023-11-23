@@ -10,6 +10,8 @@
 #define in3 4
 #define in4 5
 
+#define time_180 3000
+
 #define pwm_max 255
 
 #define colour_line GREEN
@@ -106,9 +108,19 @@ void loop() {
     digitalWrite(in3, LOW);
     digitalWrite(in4, LOW);
     grabber_servo.write(CLOSED_VALUE);
-    delay(10000);
 
     // DO A 180, then, run same line follow until both see red. (if unequal adjusts, inverse them)
+    // 180
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, HIGH);
+    digitalWrite(in3, HIGH);
+    digitalWrite(in4, LOW);
+    analogWrite(enA, full_speed);
+    analogWrite(enB, full_speed);
+    delay(time_180);
+
+    // line follow
+
 
     digitalWrite(in1, LOW);
     digitalWrite(in2, HIGH);
@@ -117,24 +129,44 @@ void loop() {
 
     do{
       PID_line_follow(tcs, &left_colour, &right_colour);
-    } while(left_colour != GREEN && right_colour!= GREEN);
+    } while(left_colour != RED && right_colour!= RED);
+    //} while(left_colour != GREEN && right_colour!= GREEN);
 
-    // run release function
-    Serial.println("RELEASE");
-    digitalWrite(in2, LOW);
-    digitalWrite(in4, LOW);
-    grabber_servo.write(OPEN_VALUE);
-    delay(10000);
+    digitalWrite(in1, LOW);
     digitalWrite(in2, HIGH);
+    digitalWrite(in3, LOW);
     digitalWrite(in4, HIGH);
 
-    do {
-      PID_line_follow(tcs, &left_colour, &right_colour);
-    } while (left_colour != RED || right_colour != RED );      
+    analogWrite(enA, full_speed);
+    analogWrite(enB, full_speed);
+    delay(2000);
+
+    grabber_servo.write(OPEN_VALUE);
+
     digitalWrite(in1, LOW);
     digitalWrite(in2, LOW);
     digitalWrite(in3, LOW);
-    digitalWrite(in4, LOW);
+    digitalWrite(in4, LOW); 
+
+    delay(10000);
+
+  //   // run release function
+  //   Serial.println("RELEASE");
+  //   digitalWrite(in2, LOW);
+  //   digitalWrite(in4, LOW);
+    
+  //   delay(10000);
+  //   digitalWrite(in2, HIGH);
+  //   digitalWrite(in4, HIGH);
+
+
+  //   do {
+  //     PID_line_follow(tcs, &left_colour, &right_colour);
+  //   } while (left_colour != RED || right_colour != RED );      
+  //   digitalWrite(in1, LOW);
+  //   digitalWrite(in2, LOW);
+  //   digitalWrite(in3, LOW);
+  //   digitalWrite(in4, LOW);
   }
 }
 
