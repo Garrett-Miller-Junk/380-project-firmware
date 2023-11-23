@@ -18,6 +18,8 @@ enum Sense_Colours{
 
 void getRGB(Adafruit_TCS34725 tcs, float *r, float *g, float *b, int side);
 
-Sense_Colours getColour(Adafruit_TCS34725 tcs, int side);
+Sense_Colours getColour(Adafruit_TCS34725 tcs, int side, float* red_percent);
+
+float getRGB_Percent(Adafruit_TCS34725 tcs, int side);
 
 #endif
