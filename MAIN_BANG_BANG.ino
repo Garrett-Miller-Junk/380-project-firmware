@@ -2,7 +2,8 @@
 #include "colourSensor.h"
 
 // Drive Motor Pins
-#define enA 9 
+#define enA 9
+// in1 LOW, in2 HIGH -> right motor fwd
 #define in1 6
 #define in2 7
 
@@ -10,7 +11,10 @@
 #define in3 4
 #define in4 5
 
-#define time_180 3000
+#define time_back 2800
+#define time_80 1400
+#define reverse_time 2000
+#define time_180 3100
 
 #define pwm_max 255
 
@@ -28,10 +32,11 @@ int right_motor_speed;
 
 // bang bang speeds //
 
-float straight_threshold = 0.01;
-int full_speed = 255;
-int reverse_left = -120; // was at -60 before
-int reverse_right = -120;
+static const float straight_threshold = 0.03;
+static const int full_speed = 255;
+static const int full_back_speed = 255;
+static const int reverse_left = -120; // was at -60 before
+static const int reverse_right = -120;
 
 // int time_until_target_curve = 12000;
 
@@ -89,10 +94,9 @@ void setup()
 
 void loop() {
   Sense_Colours left_colour, right_colour;
+  float r_p, l_p;
 
-  do{
-
-  }while(digitalRead(PC13));
+  while(digitalRead(PC13));
 
   Serial.println("----- START PROGRAM -----");
 
@@ -109,28 +113,67 @@ void loop() {
     digitalWrite(in4, LOW);
     grabber_servo.write(CLOSED_VALUE);
 
-    // DO A 180, then, run same line follow until both see red. (if unequal adjusts, inverse them)
-    // 180
-    digitalWrite(in1, LOW);
-    digitalWrite(in2, HIGH);
+    // Reverse quickly for a short period of time
+    digitalWrite(in1, HIGH);
+    digitalWrite(in2, LOW);
     digitalWrite(in3, HIGH);
     digitalWrite(in4, LOW);
-    analogWrite(enA, full_speed);
-    analogWrite(enB, full_speed);
-    delay(time_180);
+    analogWrite(enA, full_back_speed);
+    analogWrite(enB, full_back_speed);
+    delay(time_back);
 
     // line follow
-
+    digitalWrite(in1, HIGH);
+    digitalWrite(in2, LOW);
+    digitalWrite(in3, LOW);
+    digitalWrite(in4, HIGH);
+    analogWrite(enA, full_back_speed);
+    analogWrite(enB, full_back_speed);  
+    delay(time_80);
 
     digitalWrite(in1, LOW);
     digitalWrite(in2, HIGH);
     digitalWrite(in3, LOW);
     digitalWrite(in4, HIGH);
 
-    do{
+
+    analogWrite(enA, full_speed);
+    analogWrite(enB, full_speed);
+
+    delay(3500); // time to approach green safe zone
+
+    // left_colour = getColour(tcs, S_LEFT, &l_p);
+    // right_colour = getColour(tcs, S_RIGHT, &r_p);
+    // while (left_colour != GREEN && right_colour != GREEN)
+    // {
+    //   left_colour = getColour(tcs, S_LEFT, &l_p);
+    //   right_colour = getColour(tcs, S_RIGHT, &r_p);
+    // }
+
+
+    digitalWrite(in1, HIGH);
+    digitalWrite(in2, LOW);
+    digitalWrite(in3, HIGH);
+    digitalWrite(in4, LOW);
+    analogWrite(enA, full_back_speed);
+    analogWrite(enB, full_back_speed);
+    delay(20);
+
+    grabber_servo.write(OPEN_VALUE);
+  
+    delay(reverse_time);
+
+    digitalWrite(in1, HIGH);
+    digitalWrite(in2, LOW);
+    digitalWrite(in3, LOW);
+    digitalWrite(in4, HIGH);
+    analogWrite(enA, full_back_speed);
+    analogWrite(enB, full_back_speed);  
+    delay(time_180);
+
+    while(true){
       PID_line_follow(tcs, &left_colour, &right_colour);
-    } while(left_colour != RED && right_colour!= RED);
-    //} while(left_colour != GREEN && right_colour!= GREEN);
+    }
 
     digitalWrite(in1, LOW);
     digitalWrite(in2, HIGH);
